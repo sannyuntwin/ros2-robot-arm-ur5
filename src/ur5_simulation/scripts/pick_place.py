@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Pick and place demo for UR5 (no gripper).
+Pick and place demo for UR5 with simple parallel-jaw gripper.
 Moves the arm through approach → pick → lift → transport → place → retreat.
 
 Box spawned at: (0.5, 0.0, 0.025)  — run spawn_box.py first
@@ -12,6 +12,7 @@ import rclpy
 from rclpy.node import Node
 from moveit_msgs.action import MoveGroup
 from moveit_msgs.msg import MotionPlanRequest, JointConstraint, Constraints, RobotState
+from control_msgs.action import GripperCommand
 from rclpy.action import ActionClient
 
 
@@ -24,55 +25,44 @@ JOINT_NAMES = [
     "wrist_3_joint",
 ]
 
-# All angles in radians. Box is at (0.5, 0.0, 0.025) in front of the robot.
 POSES = {
     #                   pan     lift     elbow   wrist1   wrist2   wrist3
     "home":         [ 0.000, -1.5708,  0.000, -1.5708,  0.000,  0.000],
-
-    # Approach: above the pick box
     "pre_pick":     [ 0.000, -1.200,   1.600, -2.000,  -1.5708,  0.000],
-
-    # Pick: lower end-effector to box height
     "pick":         [ 0.000, -1.050,   1.850, -2.400,  -1.5708,  0.000],
-
-    # Lift: raise straight up after "grasping"
     "lift":         [ 0.000, -1.200,   1.400, -1.800,  -1.5708,  0.000],
-
-    # Transport: swing left toward place target
     "transport":    [-0.900, -1.200,   1.400, -1.800,  -1.5708,  0.000],
-
-    # Pre-place: above the place target
     "pre_place":    [-0.900, -1.200,   1.600, -2.000,  -1.5708,  0.000],
-
-    # Place: lower to place height
     "place":        [-0.900, -1.050,   1.850, -2.400,  -1.5708,  0.000],
-
-    # Retreat: lift back up
     "retreat":      [-0.900, -1.200,   1.400, -1.800,  -1.5708,  0.000],
 }
 
 SEQUENCE = [
     "home",
     "pre_pick",
-    "pick",        # ← grasp here (no gripper, just pause)
+    "pick",
     "lift",
     "transport",
     "pre_place",
-    "place",       # ← release here
+    "place",
     "retreat",
     "home",
 ]
+
+GRIPPER_OPEN   = 0.04   # fingers fully open (110 mm gap)
+GRIPPER_GRASP  = 0.012  # fingers around 5 cm box (~54 mm gap)
 
 
 class PickPlace(Node):
     def __init__(self):
         super().__init__("pick_place")
-        self._client = ActionClient(self, MoveGroup, "/move_action")
+        self._arm = ActionClient(self, MoveGroup, "/move_action")
+        self._gripper = ActionClient(self, GripperCommand, "/gripper_controller/gripper_cmd")
 
-    def move_to(self, pose_name: str, slow: bool = False):
+    def move_to(self, pose_name: str, slow: bool = False) -> bool:
         self.get_logger().info(f"→ {pose_name}")
 
-        if not self._client.wait_for_server(timeout_sec=10.0):
+        if not self._arm.wait_for_server(timeout_sec=10.0):
             self.get_logger().error("MoveGroup action server not available")
             return False
 
@@ -98,7 +88,7 @@ class PickPlace(Node):
 
         goal.request.goal_constraints.append(constraints)
 
-        future = self._client.send_goal_async(goal)
+        future = self._arm.send_goal_async(goal)
         rclpy.spin_until_future_complete(self, future)
         result_future = future.result().get_result_async()
         rclpy.spin_until_future_complete(self, result_future)
@@ -111,6 +101,18 @@ class PickPlace(Node):
             self.get_logger().warn(f"  ✗ failed at {pose_name} (error_code={code})")
             return False
 
+    def gripper(self, position: float):
+        if not self._gripper.wait_for_server(timeout_sec=5.0):
+            self.get_logger().warn("Gripper action server not available — skipping")
+            return
+        goal = GripperCommand.Goal()
+        goal.command.position = position
+        goal.command.max_effort = 50.0
+        future = self._gripper.send_goal_async(goal)
+        rclpy.spin_until_future_complete(self, future)
+        result_future = future.result().get_result_async()
+        rclpy.spin_until_future_complete(self, result_future)
+
 
 def main():
     rclpy.init()
@@ -122,18 +124,27 @@ def main():
     node.get_logger().info("=== Pick and Place Demo ===")
     node.get_logger().info("Make sure spawn_box.py was run first!")
 
-    for i, pose in enumerate(SEQUENCE):
-        # Slow down on pick and place moves for precision
+    node.get_logger().info("Opening gripper...")
+    node.gripper(GRIPPER_OPEN)
+
+    for pose in SEQUENCE:
         slow = pose in ("pick", "place", "pre_pick", "pre_place")
+
+        # Open gripper before approaching the box
+        if pose == "pre_pick":
+            node.get_logger().info("  [OPEN] gripper")
+            node.gripper(GRIPPER_OPEN)
+
         ok = node.move_to(pose, slow=slow)
 
-        # Pause at pick/place to simulate grasp/release
         if pose == "pick":
-            node.get_logger().info("  [GRASP] (simulated — no gripper)")
-            time.sleep(1.0)
+            node.get_logger().info("  [GRASP] closing gripper")
+            node.gripper(GRIPPER_GRASP)
+            time.sleep(0.5)
         elif pose == "place":
-            node.get_logger().info("  [RELEASE] (simulated — no gripper)")
-            time.sleep(1.0)
+            node.get_logger().info("  [RELEASE] opening gripper")
+            node.gripper(GRIPPER_OPEN)
+            time.sleep(0.5)
 
         if not ok:
             node.get_logger().error(f"Stopping at {pose}")
