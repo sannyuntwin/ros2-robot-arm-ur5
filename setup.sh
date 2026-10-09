@@ -2,21 +2,30 @@
 set -e
 
 echo "=== UR5 Simulation Setup ==="
-echo "Installing ROS 2 Humble dependencies..."
 
-source /opt/ros/humble/setup.bash
+# Detect ROS distro based on Ubuntu version
+UBUNTU_VERSION=$(lsb_release -rs)
+if [[ "$UBUNTU_VERSION" == "22.04" ]]; then
+    ROS_DISTRO="humble"
+elif [[ "$UBUNTU_VERSION" == "24.04" ]]; then
+    ROS_DISTRO="jazzy"
+else
+    echo "Unsupported Ubuntu version: $UBUNTU_VERSION"
+    exit 1
+fi
+
+echo "Detected Ubuntu $UBUNTU_VERSION → using ROS 2 $ROS_DISTRO"
+source /opt/ros/$ROS_DISTRO/setup.bash
 
 sudo apt update && sudo apt install -y \
-    ros-humble-ur \
-    ros-humble-ur-simulation-gazebo \
-    ros-humble-moveit \
-    ros-humble-ros2-control \
-    ros-humble-ros2-controllers \
-    ros-humble-gazebo-ros-pkgs \
-    ros-humble-gazebo-ros2-control \
-    ros-humble-joint-state-publisher-gui \
-    ros-humble-xacro \
-    ros-humble-rviz2
+    ros-$ROS_DISTRO-ur \
+    ros-$ROS_DISTRO-ur-simulation-gazebo \
+    ros-$ROS_DISTRO-moveit \
+    ros-$ROS_DISTRO-ros2-control \
+    ros-$ROS_DISTRO-ros2-controllers \
+    ros-$ROS_DISTRO-joint-state-publisher-gui \
+    ros-$ROS_DISTRO-xacro \
+    ros-$ROS_DISTRO-rviz2
 
 echo ""
 echo "=== Building workspace ==="
