@@ -11,7 +11,7 @@ import time
 import rclpy
 from rclpy.node import Node
 from moveit_msgs.action import MoveGroup
-from moveit_msgs.msg import MotionPlanRequest, JointConstraint, Constraints
+from moveit_msgs.msg import MotionPlanRequest, JointConstraint, Constraints, RobotState
 from rclpy.action import ActionClient
 
 
@@ -81,6 +81,8 @@ class PickPlace(Node):
         goal.request.group_name = "ur_manipulator"
         goal.request.num_planning_attempts = 10
         goal.request.allowed_planning_time = 5.0
+        goal.request.start_state = RobotState()
+        goal.request.start_state.is_diff = True
         goal.request.max_velocity_scaling_factor = 0.2 if slow else 0.4
         goal.request.max_acceleration_scaling_factor = 0.1 if slow else 0.3
 
@@ -114,8 +116,8 @@ def main():
     rclpy.init()
     node = PickPlace()
 
-    node.get_logger().info("Waiting 3s for MoveIt to initialize...")
-    time.sleep(3.0)
+    node.get_logger().info("Waiting 5s for MoveIt to initialize...")
+    time.sleep(5.0)
 
     node.get_logger().info("=== Pick and Place Demo ===")
     node.get_logger().info("Make sure spawn_box.py was run first!")
