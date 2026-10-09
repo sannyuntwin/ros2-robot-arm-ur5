@@ -15,4 +15,16 @@ install(PROGRAMS
   RENAME move_ur5
 )
 
+install(PROGRAMS
+  scripts/pick_place.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME pick_place
+)
+
+install(PROGRAMS
+  scripts/spawn_box.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME spawn_box
+)
+
 ament_package()
