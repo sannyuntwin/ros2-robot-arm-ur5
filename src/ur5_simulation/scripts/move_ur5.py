@@ -22,11 +22,25 @@ JOINT_NAMES = [
     "wrist_3_joint",
 ]
 
-# Predefined poses: (name, [j1..j6] in radians)
+# Predefined poses: name → [shoulder_pan, shoulder_lift, elbow, wrist_1, wrist_2, wrist_3]
 POSES = {
-    "home":   [0.0,  -1.5708, 0.0, -1.5708, 0.0, 0.0],
-    "up":     [0.0,  -1.5708, -1.5708, -1.5708, 0.0, 0.0],
-    "reach":  [0.0,  -1.0,    1.0,  -1.5708, 0.0, 0.0],
+    # Standard positions
+    "home":       [ 0.0,   -1.5708,  0.0,    -1.5708,  0.0,   0.0],   # default ready pose
+    "zero":       [ 0.0,    0.0,     0.0,     0.0,      0.0,   0.0],   # all joints at 0 (arm straight up)
+    "fold":       [ 0.0,   -3.1416,  2.4,    -0.8,      0.0,   0.0],   # compact folded
+
+    # Reach poses
+    "reach_fwd":  [ 0.0,   -1.0,     1.0,    -1.5708,   0.0,   0.0],   # reach forward
+    "reach_up":   [ 0.0,   -1.5708, -1.5708, -1.5708,   0.0,   0.0],   # reach upward
+    "reach_down": [ 0.0,   -0.5,     1.8,    -2.8,       0.0,   0.0],   # reach downward
+
+    # Side poses
+    "side_left":  [ 1.5708, -1.5708,  1.5708, -1.5708, -1.5708, 0.0],  # arm to the left
+    "side_right": [-1.5708, -1.5708,  1.5708, -1.5708,  1.5708, 0.0],  # arm to the right
+
+    # Wrist variations (from home)
+    "wrist_flip": [ 0.0,   -1.5708,  0.0,    -1.5708,   0.0,   3.1416], # wrist 180° spin
+    "carry":      [ 0.0,   -2.0,     2.0,    -1.5708,  -1.5708, 0.0],   # compact carry pose
 }
 
 
@@ -80,7 +94,21 @@ def main():
     node.get_logger().info("Waiting 3s for MoveIt to initialize...")
     time.sleep(3.0)
 
-    for pose in ["home", "up", "reach", "home"]:
+    sequence = [
+        "home",
+        "zero",
+        "reach_fwd",
+        "side_left",
+        "side_right",
+        "reach_up",
+        "reach_down",
+        "carry",
+        "wrist_flip",
+        "fold",
+        "home",
+    ]
+
+    for pose in sequence:
         node.move_to(pose)
 
     rclpy.shutdown()
