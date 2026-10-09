@@ -7,7 +7,7 @@ import sys
 BOX_SDF = """
 <sdf version='1.7'>
   <model name='pick_box'>
-    <static>false</static>
+    <static>true</static>
     <link name='box_link'>
       <inertial>
         <mass>0.1</mass>
