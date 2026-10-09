@@ -11,7 +11,7 @@ def generate_launch_description():
     ur_type = LaunchConfiguration("ur_type")
     launch_rviz = LaunchConfiguration("launch_rviz")
 
-    ur_simulation_gazebo = FindPackageShare("ur_simulation_gazebo")
+    ur_simulation_gz = FindPackageShare("ur_simulation_gz")
 
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -26,7 +26,7 @@ def generate_launch_description():
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
-                [ur_simulation_gazebo, "/launch/ur_sim_control.launch.py"]
+                [ur_simulation_gz, "/launch/ur_sim_control.launch.py"]
             ),
             launch_arguments={
                 "ur_type": ur_type,
