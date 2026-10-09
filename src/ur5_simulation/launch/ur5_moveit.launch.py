@@ -45,4 +45,16 @@ def generate_launch_description():
             ],
             output="screen",
         ),
+        # Bridge overhead camera topics from Gazebo to ROS 2
+        Node(
+            package="ros_gz_bridge",
+            executable="parameter_bridge",
+            arguments=[
+                "/overhead_camera/image@sensor_msgs/msg/Image[gz.msgs.Image",
+                "/overhead_camera/depth_image@sensor_msgs/msg/Image[gz.msgs.Image",
+                "/overhead_camera/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
+                "/overhead_camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo",
+            ],
+            output="screen",
+        ),
     ])

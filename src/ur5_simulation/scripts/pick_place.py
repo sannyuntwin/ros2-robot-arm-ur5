@@ -8,11 +8,13 @@ Place target:   (0.3, -0.4, 0.025)
 """
 
 import time
+import math
 import rclpy
 from rclpy.node import Node
 from moveit_msgs.action import MoveGroup
 from moveit_msgs.msg import MotionPlanRequest, JointConstraint, Constraints, RobotState
 from std_msgs.msg import Float64MultiArray
+from geometry_msgs.msg import PointStamped
 from rclpy.action import ActionClient
 
 
@@ -59,9 +61,17 @@ class PickPlace(Node):
         self._arm = ActionClient(self, MoveGroup, "/move_action")
         self._gripper_pub = self.create_publisher(
             Float64MultiArray, "/gripper_controller/commands", 10)
+        self._detected_box = None
+        self._box_sub = self.create_subscription(
+            PointStamped, "/detected_box_pose", self._box_callback, 10)
 
-    def move_to(self, pose_name: str, slow: bool = False) -> bool:
+    def _box_callback(self, msg: PointStamped):
+        self._detected_box = msg.point
+
+    def move_to(self, pose_name: str, slow: bool = False,
+                poses: dict = None) -> bool:
         self.get_logger().info(f"→ {pose_name}")
+        poses = poses or POSES
 
         if not self._arm.wait_for_server(timeout_sec=10.0):
             self.get_logger().error("MoveGroup action server not available")
@@ -78,7 +88,7 @@ class PickPlace(Node):
         goal.request.max_acceleration_scaling_factor = 0.1 if slow else 0.3
 
         constraints = Constraints()
-        for name, value in zip(JOINT_NAMES, POSES[pose_name]):
+        for name, value in zip(JOINT_NAMES, poses[pose_name]):
             jc = JointConstraint()
             jc.joint_name = name
             jc.position = value
@@ -109,6 +119,16 @@ class PickPlace(Node):
         time.sleep(1.0)
 
 
+def compute_pick_poses(box_x: float, box_y: float) -> dict:
+    """Adjust pre_pick/pick/lift shoulder_pan to point at detected box."""
+    pan = math.atan2(box_y, box_x)
+    return {
+        "pre_pick": [pan, -1.200, 1.600, -2.000, -1.5708, 0.000],
+        "pick":     [pan, -1.050, 1.850, -2.400, -1.5708, 0.000],
+        "lift":     [pan, -1.200, 1.400, -1.800, -1.5708, 0.000],
+    }
+
+
 def main():
     rclpy.init()
     node = PickPlace()
@@ -116,8 +136,21 @@ def main():
     node.get_logger().info("Waiting 5s for MoveIt to initialize...")
     time.sleep(5.0)
 
+    # Wait up to 10s for box detection; fall back to hardcoded if not detected
+    node.get_logger().info("Waiting for box detection...")
+    deadline = time.time() + 10.0
+    while node._detected_box is None and time.time() < deadline:
+        rclpy.spin_once(node, timeout_sec=0.2)
+
+    dynamic_poses = POSES.copy()
+    if node._detected_box is not None:
+        bx, by = node._detected_box.x, node._detected_box.y
+        node.get_logger().info(f"Box detected at ({bx:.3f}, {by:.3f}) — using dynamic poses")
+        dynamic_poses.update(compute_pick_poses(bx, by))
+    else:
+        node.get_logger().warn("No box detected — using hardcoded poses")
+
     node.get_logger().info("=== Pick and Place Demo ===")
-    node.get_logger().info("Make sure spawn_box.py was run first!")
 
     node.get_logger().info("Opening gripper...")
     node.gripper(GRIPPER_OPEN)
@@ -125,12 +158,11 @@ def main():
     for pose in SEQUENCE:
         slow = pose in ("pick", "place", "pre_pick", "pre_place")
 
-        # Open gripper before approaching the box
         if pose == "pre_pick":
             node.get_logger().info("  [OPEN] gripper")
             node.gripper(GRIPPER_OPEN)
 
-        ok = node.move_to(pose, slow=slow)
+        ok = node.move_to(pose, slow=slow, poses=dynamic_poses)
 
         if pose == "pick":
             node.get_logger().info("  [GRASP] closing gripper")

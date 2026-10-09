@@ -28,4 +28,16 @@ install(PROGRAMS
   RENAME spawn_box
 )
 
+install(PROGRAMS
+  scripts/box_detector.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME box_detector
+)
+
+install(PROGRAMS
+  scripts/dashboard.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME dashboard
+)
+
 ament_package()

@@ -64,6 +64,46 @@
   <!-- Gripper attached to tool0 -->
   <xacro:simple_gripper prefix="$(arg tf_prefix)" parent="$(arg tf_prefix)tool0"/>
 
+  <!-- Overhead depth camera fixed above the workspace -->
+  <link name="overhead_camera_link">
+    <visual>
+      <geometry><box size="0.05 0.05 0.03"/></geometry>
+      <material name="camera_black"><color rgba="0.1 0.1 0.1 1"/></material>
+    </visual>
+    <inertial>
+      <mass value="0.1"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <joint name="overhead_camera_joint" type="fixed">
+    <parent link="world"/>
+    <child link="overhead_camera_link"/>
+    <!-- 1.5 m above table, rotated 180° around X so camera Z points down -->
+    <origin xyz="0.5 0.0 1.5" rpy="3.14159 0.0 0.0"/>
+  </joint>
+
+  <gazebo reference="overhead_camera_link">
+    <sensor name="overhead_camera" type="rgbd_camera">
+      <always_on>1</always_on>
+      <update_rate>10</update_rate>
+      <topic>overhead_camera</topic>
+      <gz_frame_id>overhead_camera_link</gz_frame_id>
+      <camera>
+        <horizontal_fov>1.2</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.1</near>
+          <far>5.0</far>
+        </clip>
+      </camera>
+    </sensor>
+  </gazebo>
+
   <gazebo reference="world"/>
   <gazebo>
     <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
