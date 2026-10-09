@@ -24,7 +24,7 @@ controller_manager:
       type: position_controllers/JointGroupPositionController
 
     gripper_controller:
-      type: parallel_gripper_action_controller/GripperActionController
+      type: position_controllers/JointGroupPositionController
 
 
 speed_scaling_state_broadcaster:
@@ -109,9 +109,6 @@ forward_position_controller:
 
 gripper_controller:
   ros__parameters:
-    joint: left_finger_joint
-    goal_tolerance: 0.005
-    max_effort: 50.0
-    allow_stalling: false
-    stall_velocity_threshold: 0.001
-    stall_timeout: 1.0
+    joints:
+      - left_finger_joint
+      - right_finger_joint

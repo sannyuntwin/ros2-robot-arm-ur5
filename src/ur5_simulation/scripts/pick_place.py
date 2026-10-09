@@ -12,7 +12,7 @@ import rclpy
 from rclpy.node import Node
 from moveit_msgs.action import MoveGroup
 from moveit_msgs.msg import MotionPlanRequest, JointConstraint, Constraints, RobotState
-from control_msgs.action import GripperCommand
+from std_msgs.msg import Float64MultiArray
 from rclpy.action import ActionClient
 
 
@@ -57,7 +57,8 @@ class PickPlace(Node):
     def __init__(self):
         super().__init__("pick_place")
         self._arm = ActionClient(self, MoveGroup, "/move_action")
-        self._gripper = ActionClient(self, GripperCommand, "/gripper_controller/gripper_cmd")
+        self._gripper_pub = self.create_publisher(
+            Float64MultiArray, "/gripper_controller/commands", 10)
 
     def move_to(self, pose_name: str, slow: bool = False) -> bool:
         self.get_logger().info(f"→ {pose_name}")
@@ -102,16 +103,10 @@ class PickPlace(Node):
             return False
 
     def gripper(self, position: float):
-        if not self._gripper.wait_for_server(timeout_sec=5.0):
-            self.get_logger().warn("Gripper action server not available — skipping")
-            return
-        goal = GripperCommand.Goal()
-        goal.command.position = position
-        goal.command.max_effort = 50.0
-        future = self._gripper.send_goal_async(goal)
-        rclpy.spin_until_future_complete(self, future)
-        result_future = future.result().get_result_async()
-        rclpy.spin_until_future_complete(self, result_future)
+        msg = Float64MultiArray()
+        msg.data = [position, position]  # left and right fingers
+        self._gripper_pub.publish(msg)
+        time.sleep(1.0)
 
 
 def main():
