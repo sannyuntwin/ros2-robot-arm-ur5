@@ -51,7 +51,7 @@ def spawn(name, sdf, x, y, z):
     req = f'sdf: "{sdf.strip()}", pose: {{position: {{x: {x}, y: {y}, z: {z}}}}}'
     result = subprocess.run([
         "gz", "service",
-        "-s", "/world/default/create",
+        "-s", "/world/empty/create",
         "--reqtype", "gz.msgs.EntityFactory",
         "--reptype", "gz.msgs.Boolean",
         "--timeout", "3000",
