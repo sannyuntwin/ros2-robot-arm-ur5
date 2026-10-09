@@ -48,7 +48,8 @@ PLACE_SDF = """
 
 
 def spawn(name, sdf, x, y, z):
-    req = f'sdf: "{sdf.strip()}", pose: {{position: {{x: {x}, y: {y}, z: {z}}}}}'
+    sdf_escaped = sdf.strip().replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+    req = f'sdf: "{sdf_escaped}", pose: {{position: {{x: {x}, y: {y}, z: {z}}}}}'
     result = subprocess.run([
         "gz", "service",
         "-s", "/world/empty/create",
@@ -58,10 +59,10 @@ def spawn(name, sdf, x, y, z):
         "--req", req,
     ], capture_output=True, text=True)
 
-    if result.returncode == 0:
+    if result.returncode == 0 and "data: true" in result.stdout:
         print(f"Spawned '{name}' at ({x}, {y}, {z})")
     else:
-        print(f"Failed to spawn '{name}': {result.stderr}", file=sys.stderr)
+        print(f"Failed to spawn '{name}': {result.stderr or result.stdout}", file=sys.stderr)
 
 
 def main():
